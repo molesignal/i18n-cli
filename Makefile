@@ -3,7 +3,7 @@
 
 .PHONY: build test fmt
 build:
-	go build -o bin/molesignal-i18n ./cmd/molesignal-i18n
+	go build -o bin/i18n-cli ./cmd/i18n-cli
 test:
 	go vet ./...
 	go test -race ./...

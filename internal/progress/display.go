@@ -70,7 +70,7 @@ func (r *Reporter) panel(width int) []string {
 	bar := strings.Repeat("━", filled) + strings.Repeat("─", barSize-filled)
 	rows := []string{
 		"",
-		"  MOLESIGNAL  /  I18N",
+		"  i18n-cli",
 		fmt.Sprintf("  %s %s  ·  %s → %d languages", marker, phase, safeText(d.source), d.languages),
 		"",
 		fmt.Sprintf("  %s  %3d%%  %d / %d strings", bar, percent, r.translated, r.pending),

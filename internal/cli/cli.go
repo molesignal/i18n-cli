@@ -21,7 +21,7 @@ import (
 // Run resolves configuration and command-line overrides, then starts translation.
 func Run(ctx context.Context, args []string, out io.Writer) error {
 	if len(args) == 0 || args[0] == "--help" || args[0] == "help" || args[0] == "-h" {
-		fmt.Fprintln(out, "Usage: molesignal-i18n translate --dir ./locales --source en --target zh-CN,ja-JP,ko-KR\nRun translate --help for options.")
+		fmt.Fprintln(out, "Usage: i18n-cli translate --dir ./locales --source en --target zh-CN,ja-JP,ko-KR\nRun translate --help for options.")
 		return nil
 	}
 

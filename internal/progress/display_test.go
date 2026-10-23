@@ -24,7 +24,7 @@ func TestTerminalPanel(t *testing.T) {
 	r.BatchDone("ja", "locales/ja/common.json", 1, 2, 3, duration)
 
 	active := strings.Join(r.panel(79), "\n")
-	for _, want := range []string{"MOLESIGNAL  /  I18N", "12%", "3 / 24 strings", "ja  ·  file 3/4  ·  batch 1/2", "locales/ja/common.json"} {
+	for _, want := range []string{"i18n-cli", "12%", "3 / 24 strings", "ja  ·  file 3/4  ·  batch 1/2", "locales/ja/common.json"} {
 		if !strings.Contains(active, want) {
 			t.Fatalf("missing %q in panel:\n%s", want, active)
 		}

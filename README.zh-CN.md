@@ -9,14 +9,14 @@
 需要 Go 1.24 或更高版本：
 
 ```sh
-go install github.com/molesignal/i18n-cli/cmd/molesignal-i18n@latest
-molesignal-i18n --help
+go install github.com/molesignal/i18n-cli/cmd/i18n-cli@latest
+i18n-cli --help
 ```
 
 安装指定版本：
 
 ```sh
-go install github.com/molesignal/i18n-cli/cmd/molesignal-i18n@v0.1.0
+go install github.com/molesignal/i18n-cli/cmd/i18n-cli@v0.2.0
 ```
 
 二进制安装到 `GOBIN` 指定的目录；未设置时安装到 `$(go env GOPATH)/bin`。请将对应目录加入 `PATH`。默认路径的设置方法：
@@ -30,7 +30,7 @@ export PATH="$(go env GOPATH)/bin:$PATH"
 ```sh
 git clone https://github.com/molesignal/i18n-cli.git
 cd i18n-cli
-molesignal-i18n translate --config examples/demo/i18n.config.json --dry-run
+i18n-cli translate --config examples/demo/i18n.config.json --dry-run
 ```
 
 ## 从源码构建与运行
@@ -42,7 +42,7 @@ make build
 export OPENAI_API_KEY="your-key"
 export OPENAI_MODEL="gpt-4.1-mini"
 export OPENAI_BASE_URL="https://api.openai.com/v1"
-./bin/molesignal-i18n translate --dir ./locales --source en --target zh-CN,ja-JP,ko-KR
+./bin/i18n-cli translate --dir ./locales --source en --target zh-CN,ja-JP,ko-KR
 ```
 
 无配置模式使用 `<dir>/<locale>/**/*.json`，例如 `locales/en/common.json` → `locales/zh-CN/common.json`。
@@ -60,7 +60,7 @@ export OPENAI_BASE_URL="https://api.openai.com/v1"
 
 ```sh
 make build
-./bin/molesignal-i18n translate --config examples/demo/i18n.config.json --dry-run
+./bin/i18n-cli translate --config examples/demo/i18n.config.json --dry-run
 ```
 
 复制 DeepSeek 环境变量模板，在 `.env` 中填写 API Key 后执行实际翻译：
@@ -69,7 +69,7 @@ make build
 cp -n .env.example .env
 # Edit .env and replace your-deepseek-api-key with your actual key.
 
-./bin/molesignal-i18n translate --config examples/demo/i18n.config.json
+./bin/i18n-cli translate --config examples/demo/i18n.config.json
 ```
 
 输出文件位置：
@@ -105,7 +105,7 @@ OPENAI_MODEL=deepseek-flash
 
 ```sh
 unset OPENAI_API_KEY OPENAI_BASE_URL OPENAI_MODEL
-./bin/molesignal-i18n translate --config examples/demo/i18n.config.json
+./bin/i18n-cli translate --config examples/demo/i18n.config.json
 ```
 
 `.env` 已被 Git 忽略，`.env.example` 只包含占位值。切换提供商后，如需重新翻译已有 demo 输出，请追加 `--force`。
@@ -115,10 +115,10 @@ unset OPENAI_API_KEY OPENAI_BASE_URL OPENAI_MODEL
 复制 `i18n.config.example.json` 为业务仓库根目录的 `i18n.config.json`，然后在业务仓库执行：
 
 ```sh
-/path/to/molesignal-i18n translate --dry-run
-/path/to/molesignal-i18n translate
+/path/to/i18n-cli translate --dry-run
+/path/to/i18n-cli translate
 # 也可以从任何目录显式指定配置
-/path/to/molesignal-i18n translate --config /path/to/app/i18n.config.json
+/path/to/i18n-cli translate --config /path/to/app/i18n.config.json
 ```
 
 ```json
@@ -152,8 +152,8 @@ unset OPENAI_API_KEY OPENAI_BASE_URL OPENAI_MODEL
 `examples/molesignal.config.json` 对应当前 `web/src/i18n/en-us/*.json` 结构。把它复制为 MoleSignal 根目录的 `i18n.config.json` 后执行：
 
 ```sh
-/path/to/molesignal-i18n translate --config /path/to/molesignal/i18n.config.json --dry-run
-/path/to/molesignal-i18n translate --config /path/to/molesignal/i18n.config.json --adopt-existing
+/path/to/i18n-cli translate --config /path/to/molesignal/i18n.config.json --dry-run
+/path/to/i18n-cli translate --config /path/to/molesignal/i18n.config.json --adopt-existing
 ```
 
 `--adopt-existing` 在首次接入时信任现有目标文案，只翻译缺失或占位符不一致的条目，并建立源文案基线。它无法判断现有翻译是否已经过时；有此疑虑时省略该选项，首次全部翻译。后续源文案或提示词变化仍会触发翻译。
@@ -193,10 +193,22 @@ unset OPENAI_API_KEY OPENAI_BASE_URL OPENAI_MODEL
 
 ## GitHub Actions 与 Pull Request
 
+```yaml
+- uses: actions/checkout@v4
+- uses: molesignal/i18n-cli@v0.2.0
+  with:
+    config: i18n.config.json
+    api-key: ${{ secrets.OPENAI_API_KEY }}
+    base-url: https://api.deepseek.com
+    model: deepseek-flash
+```
+
+Action 支持 `config`、`api-key`、`base-url`、`model` 和 `dry-run` 输入。设置 `dry-run: 'true'` 可仅预览，不调用 API 或写文件。Action 翻译检出的仓库文件，自动提交可使用下方 PR 工作流。
+
 工程提供 `action.yml` composite action 和 `examples/translate.workflow.yml` 消费端工作流。使用公开仓库 `molesignal/i18n-cli`，然后：
 
 1. 将配置保存为业务仓库 `i18n.config.json`，工作流复制到 `.github/workflows/translate.yml`。
-2. 设置仓库 Secret `OPENAI_API_KEY`；Variables `I18N_CLI_REPOSITORY`（`molesignal/i18n-cli`）、`I18N_CLI_REF`（`v0.1.0` 或固定 commit SHA）。可选 `OPENAI_BASE_URL`、`OPENAI_MODEL`。
+2. 设置仓库 Secret `OPENAI_API_KEY`；Variables `I18N_CLI_REPOSITORY`（`molesignal/i18n-cli`）、`I18N_CLI_REF`（`v0.2.0` 或固定 commit SHA）。可选 `OPENAI_BASE_URL`、`OPENAI_MODEL`。
 3. 按实际配置修改工作流源路径、恢复目标路径、PR add-paths 和默认分支。示例已匹配 MoleSignal 的 en-us/zh-cn/ja-jp/ko-kr。
 4. 允许 GitHub Actions 创建 Pull Request，确保组织策略允许 contents/pull-requests 写权限。私有 CLI 仓库需要具有读取权限的单独 checkout token。
 5. 推送源 JSON 或手动触发工作流。工作流恢复尚未合并的翻译分支状态，增量更新同一个 `automation/i18n` PR。
@@ -219,7 +231,7 @@ make build
 macOS/Linux 的交互终端显示原地刷新的紧凑面板：已校验字符串的进度条、当前目标语言和文件、批次位置及耗时。API 工作期间每 100 毫秒更新动画和计时。过长路径会根据终端宽度截断。完成后面板替换为保存成功的汇总；dry-run 和失败状态使用各自的汇总信息。
 
 ```text
-  MOLESIGNAL  /  I18N
+  i18n-cli
   ⠹ Translating  ·  en → 2 languages
 
   ━━━━━━━━━━━━────────────   50%  12 / 24 strings
@@ -229,7 +241,7 @@ macOS/Linux 的交互终端显示原地刷新的紧凑面板：已校验字符�
 ```
 
 ```text
-  MOLESIGNAL  /  I18N
+  i18n-cli
   ✓ Complete  ·  en → 2 languages
 
   ━━━━━━━━━━━━━━━━━━━━━━━━  100%  24 / 24 strings

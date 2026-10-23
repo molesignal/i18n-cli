@@ -11,14 +11,14 @@ Git, and your production application does not call an LLM.
 Requires Go 1.24 or later:
 
 ```sh
-go install github.com/molesignal/i18n-cli/cmd/molesignal-i18n@latest
-molesignal-i18n --help
+go install github.com/molesignal/i18n-cli/cmd/i18n-cli@latest
+i18n-cli --help
 ```
 
 To install a specific release:
 
 ```sh
-go install github.com/molesignal/i18n-cli/cmd/molesignal-i18n@v0.1.0
+go install github.com/molesignal/i18n-cli/cmd/i18n-cli@v0.2.0
 ```
 
 Go installs the binary into `GOBIN` when set, otherwise into `$(go env GOPATH)/bin`.
@@ -34,7 +34,7 @@ and configuration there. To try this repository's bundled demo, clone it first:
 ```sh
 git clone https://github.com/molesignal/i18n-cli.git
 cd i18n-cli
-molesignal-i18n translate --config examples/demo/i18n.config.json --dry-run
+i18n-cli translate --config examples/demo/i18n.config.json --dry-run
 ```
 
 ## Build from source
@@ -43,7 +43,7 @@ Requires Go 1.24 or later. Run from the project root:
 
 ```sh
 make build
-./bin/molesignal-i18n --help
+./bin/i18n-cli --help
 ```
 
 ## Try the included demo
@@ -60,7 +60,7 @@ of three, the first run schedules **24 translations in eight batches across four
 Preview the plan without an API key, API calls, or file writes:
 
 ```sh
-./bin/molesignal-i18n translate --config examples/demo/i18n.config.json --dry-run
+./bin/i18n-cli translate --config examples/demo/i18n.config.json --dry-run
 ```
 
 Copy the DeepSeek environment template, edit `.env` to set your API key, and run:
@@ -69,7 +69,7 @@ Copy the DeepSeek environment template, edit `.env` to set your API key, and run
 cp -n .env.example .env
 # Edit .env and replace your-deepseek-api-key with your actual key.
 
-./bin/molesignal-i18n translate --config examples/demo/i18n.config.json
+./bin/i18n-cli translate --config examples/demo/i18n.config.json
 ```
 
 Generated files:
@@ -123,7 +123,7 @@ OpenAI settings, unset them to use the DeepSeek file:
 
 ```sh
 unset OPENAI_API_KEY OPENAI_BASE_URL OPENAI_MODEL
-./bin/molesignal-i18n translate --config examples/demo/i18n.config.json
+./bin/i18n-cli translate --config examples/demo/i18n.config.json
 ```
 
 `.env` is already ignored by Git; `.env.example` contains only placeholders. Use
@@ -136,7 +136,7 @@ The CLI automatically loads `i18n.config.json` from the current directory. Copy
 or select a configuration explicitly:
 
 ```sh
-/path/to/molesignal-i18n translate --config /path/to/app/i18n.config.json
+/path/to/i18n-cli translate --config /path/to/app/i18n.config.json
 ```
 
 ```json
@@ -168,7 +168,7 @@ or select a configuration explicitly:
 Without a configuration file, the default layout is `<dir>/<locale>/**/*.json`:
 
 ```sh
-./bin/molesignal-i18n translate --dir ./locales --source en --target zh-CN,ja-JP,ko-KR
+./bin/i18n-cli translate --dir ./locales --source en --target zh-CN,ja-JP,ko-KR
 ```
 
 ## MoleSignal configuration
@@ -178,8 +178,8 @@ Without a configuration file, the default layout is `<dir>/<locale>/**/*.json`:
 `i18n.config.json`, then run:
 
 ```sh
-/path/to/molesignal-i18n translate --config /path/to/molesignal/i18n.config.json --dry-run
-/path/to/molesignal-i18n translate --config /path/to/molesignal/i18n.config.json --adopt-existing
+/path/to/i18n-cli translate --config /path/to/molesignal/i18n.config.json --dry-run
+/path/to/i18n-cli translate --config /path/to/molesignal/i18n.config.json --adopt-existing
 ```
 
 `--adopt-existing` trusts valid existing translations without recorded source hashes,
@@ -233,7 +233,7 @@ Long paths are shortened to fit the terminal width. Completion replaces the live
 panel with a saved-output summary; dry runs and failures have distinct summaries.
 
 ```text
-  MOLESIGNAL  /  I18N
+  i18n-cli
   ⠹ Translating  ·  en → 2 languages
 
   ━━━━━━━━━━━━────────────   50%  12 / 24 strings
@@ -243,7 +243,7 @@ panel with a saved-output summary; dry runs and failures have distinct summaries
 ```
 
 ```text
-  MOLESIGNAL  /  I18N
+  i18n-cli
   ✓ Complete  ·  en → 2 languages
 
   ━━━━━━━━━━━━━━━━━━━━━━━━  100%  24 / 24 strings
@@ -273,12 +273,26 @@ the live panel on supported terminals. Progress messages remain in English.
 
 ## GitHub Actions and pull requests
 
+```yaml
+- uses: actions/checkout@v4
+- uses: molesignal/i18n-cli@v0.2.0
+  with:
+    config: i18n.config.json
+    api-key: ${{ secrets.OPENAI_API_KEY }}
+    base-url: https://api.deepseek.com
+    model: deepseek-flash
+```
+
+The action supports `config`, `api-key`, `base-url`, `model`, and `dry-run` inputs.
+Set `dry-run: 'true'` to preview without API calls or file writes. The action translates
+files in the checked-out repository; use the PR workflow below to commit them.
+
 The project provides a composite action in [action.yml](action.yml) and a consumer
 workflow in [examples/translate.workflow.yml](examples/translate.workflow.yml).
 Use the public `molesignal/i18n-cli` repository, then:
 
 1. Save your application configuration as `i18n.config.json` and copy the workflow to `.github/workflows/translate.yml`.
-2. Set Secret `OPENAI_API_KEY` and Variables `I18N_CLI_REPOSITORY` (`molesignal/i18n-cli`) and `I18N_CLI_REF` (`v0.1.0` or a fixed commit SHA). Optionally set `OPENAI_BASE_URL` and `OPENAI_MODEL`.
+2. Set Secret `OPENAI_API_KEY` and Variables `I18N_CLI_REPOSITORY` (`molesignal/i18n-cli`) and `I18N_CLI_REF` (`v0.2.0` or a fixed commit SHA). Optionally set `OPENAI_BASE_URL` and `OPENAI_MODEL`.
 3. Adjust source paths, restored target paths, PR `add-paths`, and the default branch. The example uses MoleSignal's en-us/zh-cn/ja-jp/ko-kr layout.
 4. Allow GitHub Actions to create pull requests and ensure repository/organization policies permit contents and pull-requests write access. A private CLI repository requires a separate checkout token with read access.
 5. Push source changes or trigger the workflow manually. It restores pending translation branch state and updates the same `automation/i18n` PR.
