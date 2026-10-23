@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "provider": {
+    "id": "openai-compatible",
+    "model": "gpt-4.1-mini",
+    "prompt": "Translate from {source} to {target}. Use concise terminology for enterprise observability. Preserve MoleSignal, OpenTelemetry, PromQL, Trace and Span."
+  },
+  "locale": {
+    "source": "en-us",
+    "targets": ["zh-cn", "ja-jp", "ko-kr"]
+  },
+  "buckets": {
+    "json": {
+      "include": ["web/src/i18n/[locale]/**/*.json"]
+    }
+  }
+}

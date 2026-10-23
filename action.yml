@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 MoleSignal Authors
+
+name: Translate JSON locales
+description: Translate changed JSON strings through an OpenAI-compatible API
+inputs:
+  config:
+    description: Configuration path in the calling repository
+    default: i18n.config.json
+  api-key:
+    description: API key (pass a GitHub Actions secret)
+    required: true
+  base-url:
+    description: Optional API base URL override
+  model:
+    description: Optional model override
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@v5
+      with:
+        go-version: '1.24.x'
+        cache: false
+    - name: Build CLI
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: go build -o "$RUNNER_TEMP/molesignal-i18n" ./cmd/molesignal-i18n
+    - name: Translate
+      shell: bash
+      env:
+        OPENAI_API_KEY: ${{ inputs.api-key }}
+        OPENAI_BASE_URL: ${{ inputs.base-url }}
+        OPENAI_MODEL: ${{ inputs.model }}
+        I18N_CONFIG_PATH: ${{ inputs.config }}
+      run: '"$RUNNER_TEMP/molesignal-i18n" translate --config "$I18N_CONFIG_PATH"'

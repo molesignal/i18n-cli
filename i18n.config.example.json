@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "provider": {
+    "id": "openai-compatible",
+    "baseUrl": "https://api.openai.com/v1",
+    "model": "gpt-4o-mini",
+    "jsonMode": true,
+    "prompt": "Translate from {source} to {target}. Preserve technical terms, JSON keys, placeholders, and variable names. Use concise terminology suitable for an enterprise observability platform. Keep MoleSignal, Trace, Span, OpenTelemetry and PromQL unchanged."
+  },
+  "locale": {
+    "source": "en",
+    "targets": ["zh-CN", "zh-TW", "ja", "ko", "fr", "de"]
+  },
+  "buckets": {
+    "json": {
+      "include": ["src/locales/[locale].json"]
+    }
+  },
+  "batchSize": 40
+}

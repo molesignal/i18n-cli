@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 MoleSignal Authors
+
+# Copy to your application's .github/workflows/translate.yml.
+# Set I18N_CLI_REPOSITORY (owner/repo) and I18N_CLI_REF (release tag or commit SHA).
+name: Translate locales
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'web/src/i18n/en-us/**/*.json'
+      - 'i18n.config.json'
+permissions:
+  contents: write
+  pull-requests: write
+concurrency:
+  group: i18n-translation
+  cancel-in-progress: false
+jobs:
+  translate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      # Recover pending PR state to avoid paying again for unmerged translations.
+      - name: Restore pending translations
+        shell: bash
+        run: |
+          if git ls-remote --exit-code --heads origin automation/i18n > /dev/null; then
+            git fetch origin automation/i18n
+            git restore --source=FETCH_HEAD -- .i18n-cli-state.json web/src/i18n/zh-cn web/src/i18n/ja-jp web/src/i18n/ko-kr
+          fi
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.I18N_CLI_REPOSITORY }}
+          ref: ${{ vars.I18N_CLI_REF }}
+          path: .i18n-cli-tool
+          persist-credentials: false
+      - uses: ./.i18n-cli-tool
+        with:
+          config: i18n.config.json
+          api-key: ${{ secrets.OPENAI_API_KEY }}
+          base-url: ${{ vars.OPENAI_BASE_URL }}
+          model: ${{ vars.OPENAI_MODEL }}
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          branch: automation/i18n
+          title: 'chore(i18n): update translations'
+          commit-message: 'chore(i18n): update translations'
+          body: 'Update JSON translations for changed source strings. Please review terminology and UI text before merging.'
+          add-paths: |
+            web/src/i18n/zh-cn
+            web/src/i18n/ja-jp
+            web/src/i18n/ko-kr
+            .i18n-cli-state.json

@@ -1,0 +1,12 @@
+/molesignal-i18n
+/bin/
+.env
+.env.*
+!.env.example
+.i18n-cli.lock
+.i18n-*.tmp
+
+# Keep generated demo output local.
+/examples/demo/.i18n-cli-state.json
+/examples/demo/locales/zh-CN/
+/examples/demo/locales/ja/

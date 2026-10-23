@@ -1,0 +1,13 @@
+{
+  "app_name": "MoleSignal",
+  "navigation": {
+    "overview": "Overview",
+    "settings": "Settings"
+  },
+  "actions": {
+    "save": "Save changes",
+    "cancel": "Cancel"
+  },
+  "welcome": "Welcome, {{name}}!",
+  "empty": ""
+}

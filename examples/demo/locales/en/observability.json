@@ -1,0 +1,10 @@
+{
+  "title": "Service health",
+  "latency": "Latency: %s ms",
+  "link": "<strong>View traces</strong>",
+  "refresh": "Refresh every {seconds} seconds",
+  "steps": ["Select a service", "Inspect its traces"],
+  "enabled": true,
+  "sample_limit": 100,
+  "note": null
+}

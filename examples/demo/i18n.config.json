@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "provider": {
+    "id": "openai-compatible",
+    "baseUrl": "https://api.deepseek.com",
+    "model": "deepseek-flash",
+    "jsonMode": true,
+    "prompt": "Translate from {source} to {target}. Use concise UI terminology for an enterprise observability platform. Preserve MoleSignal, OpenTelemetry, Trace, Span and PromQL. Preserve all placeholders and HTML tags exactly."
+  },
+  "locale": {
+    "source": "en",
+    "targets": [
+      "zh-CN",
+      "ja"
+    ]
+  },
+  "buckets": {
+    "json": {
+      "include": [
+        "locales/[locale]/**/*.json"
+      ]
+    }
+  },
+  "batchSize": 3
+}
