@@ -30,7 +30,7 @@ jobs:
         run: |
           if git ls-remote --exit-code --heads origin automation/i18n > /dev/null; then
             git fetch origin automation/i18n
-            git restore --source=FETCH_HEAD -- .i18n-cli-state.json web/src/i18n/zh-cn web/src/i18n/ja-jp web/src/i18n/ko-kr
+            git restore --source=FETCH_HEAD -- .i18n-cli-state.json web/src/i18n/ja-jp web/src/i18n/ko-kr web/src/i18n/de web/src/i18n/es web/src/i18n/fr web/src/i18n/pt-br
           fi
       - uses: actions/checkout@v4
         with:
@@ -51,7 +51,10 @@ jobs:
           commit-message: 'chore(i18n): update translations'
           body: 'Update JSON translations for changed source strings. Please review terminology and UI text before merging.'
           add-paths: |
-            web/src/i18n/zh-cn
             web/src/i18n/ja-jp
             web/src/i18n/ko-kr
+            web/src/i18n/de
+            web/src/i18n/es
+            web/src/i18n/fr
+            web/src/i18n/pt-br
             .i18n-cli-state.json

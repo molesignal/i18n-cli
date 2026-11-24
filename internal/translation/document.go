@@ -14,7 +14,15 @@ import (
 	"strings"
 )
 
+// Object is a JSON object that keeps its keys in document order, so a translated file lists
+// its keys as the source does.
+type Object struct {
+	Keys   []string
+	Values map[string]any
+}
+
 // Decode rejects duplicate object keys so no source text is silently discarded.
+// Objects decode to *Object, arrays to []any, numbers to json.Number.
 func Decode(data []byte) (any, error) {
 	d := json.NewDecoder(bytes.NewReader(data))
 	d.UseNumber()
@@ -28,7 +36,7 @@ func Decode(data []byte) (any, error) {
 	}
 
 	switch v.(type) {
-	case map[string]any, []any:
+	case *Object, []any:
 
 	default:
 		return nil, fmt.Errorf("JSON root must be an object or array")
@@ -46,7 +54,7 @@ func decodeValue(d *json.Decoder) (any, error) {
 
 	switch t {
 	case json.Delim('{'):
-		m := map[string]any{}
+		m := &Object{Values: map[string]any{}}
 
 		for d.More() {
 			k, err := d.Token()
@@ -60,7 +68,7 @@ func decodeValue(d *json.Decoder) (any, error) {
 				return nil, fmt.Errorf("invalid object key")
 			}
 
-			if _, exists := m[key]; exists {
+			if _, exists := m.Values[key]; exists {
 				return nil, fmt.Errorf("duplicate JSON key %q", key)
 			}
 
@@ -69,7 +77,8 @@ func decodeValue(d *json.Decoder) (any, error) {
 				return nil, err
 			}
 
-			m[key] = v
+			m.Keys = append(m.Keys, key)
+			m.Values[key] = v
 		}
 
 		_, err := d.Token()
@@ -110,9 +119,9 @@ func Strings(v any) map[string]string {
 		case string:
 			out[p] = x
 
-		case map[string]any:
-			for k, child := range x {
-				walk(child, p+"/"+pointer(k))
+		case *Object:
+			for _, k := range x.Keys {
+				walk(x.Values[k], p+"/"+pointer(k))
 			}
 
 		case []any:
@@ -132,11 +141,11 @@ func rebuild(v any, p string, translated map[string]string) any {
 	case string:
 		return translated[p]
 
-	case map[string]any:
-		out := map[string]any{}
+	case *Object:
+		out := &Object{Keys: append([]string(nil), x.Keys...), Values: make(map[string]any, len(x.Keys))}
 
-		for k, child := range x {
-			out[k] = rebuild(child, p+"/"+pointer(k), translated)
+		for _, k := range x.Keys {
+			out.Values[k] = rebuild(x.Values[k], p+"/"+pointer(k), translated)
 		}
 
 		return out
@@ -155,9 +164,82 @@ func rebuild(v any, p string, translated map[string]string) any {
 	}
 }
 
+// encode writes value as JSON indented by two spaces with a final newline. Objects keep their
+// key order; HTML characters are written as they are.
+func encode(value any) ([]byte, error) {
+	var compact bytes.Buffer
+	if err := writeValue(&compact, value); err != nil {
+		return nil, err
+	}
+
+	var out bytes.Buffer
+	if err := json.Indent(&out, compact.Bytes(), "", "  "); err != nil {
+		return nil, err
+	}
+
+	out.WriteByte('\n')
+	return out.Bytes(), nil
+}
+
+// writeValue writes value as compact JSON.
+func writeValue(b *bytes.Buffer, value any) error {
+	switch x := value.(type) {
+	case *Object:
+		b.WriteByte('{')
+
+		for i, k := range x.Keys {
+			if i > 0 {
+				b.WriteByte(',')
+			}
+
+			if err := writeValue(b, k); err != nil {
+				return err
+			}
+
+			b.WriteByte(':')
+
+			if err := writeValue(b, x.Values[k]); err != nil {
+				return err
+			}
+		}
+
+		b.WriteByte('}')
+
+	case []any:
+		b.WriteByte('[')
+
+		for i, item := range x {
+			if i > 0 {
+				b.WriteByte(',')
+			}
+
+			if err := writeValue(b, item); err != nil {
+				return err
+			}
+		}
+
+		b.WriteByte(']')
+
+	default:
+		var one bytes.Buffer
+		encoder := json.NewEncoder(&one)
+		encoder.SetEscapeHTML(false)
+
+		if err := encoder.Encode(x); err != nil {
+			return err
+		}
+
+		b.Write(bytes.TrimRight(one.Bytes(), "\n"))
+	}
+
+	return nil
+}
+
 // ICU plural/select messages require a parser and are deliberately rejected in v1.
 var complexICU = regexp.MustCompile(`\{\s*[^{} ,]+\s*,\s*(plural|select|selectordinal)\s*,`)
-var tokens = regexp.MustCompile(`\{\{[^{}]+\}\}|\$\{[^{}]+\}|\{[A-Za-z_][A-Za-z0-9_.-]*\}|%(?:\[[0-9]+\]|[0-9]+\$)?[-+#0 ]*[0-9]*(?:\.[0-9]+)?[a-zA-Z%]|</?[A-Za-z][^<>]*>`)
+
+// A printf directive takes no space flag: "100% of" and "10 % des" are prose, not "% o" or "% d".
+var tokens = regexp.MustCompile(`\{\{[^{}]+\}\}|\$\{[^{}]+\}|\{[A-Za-z_][A-Za-z0-9_.-]*\}|%(?:\[[0-9]+\]|[0-9]+\$)?[-+#0]*[0-9]*(?:\.[0-9]+)?[a-zA-Z%]|</?[A-Za-z][^<>]*>`)
 
 // Validate rejects blank translations and changes to placeholder or HTML tag counts.
 func Validate(source, target string) error {

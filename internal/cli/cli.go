@@ -63,6 +63,7 @@ func Run(ctx context.Context, args []string, out io.Writer) error {
 	flags.StringVar(&baseURL, "base-url", providerEnv(values, "OPENAI_BASE_URL", fallback(c.Provider.BaseURL, "https://api.openai.com/v1")), "API base URL including /v1 if required")
 	flags.StringVar(&model, "model", providerEnv(values, "OPENAI_MODEL", c.Provider.Model), "model ID (or OPENAI_MODEL)")
 	flags.StringVar(&instructionsFile, "instructions", "", "UTF-8 glossary/style guidance file")
+	flags.StringVar(&o.Plurals, "plurals", c.Buckets.JSON.Plurals, "plural key layout: i18next adds each target language's CLDR plural forms")
 	defaultJSONMode := true
 
 	if c.Provider.JSONMode != nil {
@@ -115,7 +116,7 @@ func Run(ctx context.Context, args []string, out io.Writer) error {
 	}
 
 	o.Out = out
-	return translation.Run(ctx, o, &provider.Client{BaseURL: baseURL, APIKey: key, Model: model, Instructions: o.Instructions, JSONMode: jsonMode, Retries: retries, HTTP: &http.Client{Timeout: timeout}})
+	return translation.Run(ctx, o, &provider.Client{BaseURL: baseURL, APIKey: key, Model: model, Instructions: o.Instructions, Plurals: o.Plurals == translation.PluralI18next, JSONMode: jsonMode, Retries: retries, HTTP: &http.Client{Timeout: timeout}})
 }
 
 // fallback returns value when non-empty, otherwise defaultValue.

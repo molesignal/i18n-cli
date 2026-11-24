@@ -7,11 +7,12 @@
   },
   "locale": {
     "source": "en-us",
-    "targets": ["zh-cn", "ja-jp", "ko-kr"]
+    "targets": ["ja-jp", "ko-kr", "de", "es", "fr", "pt-br"]
   },
   "buckets": {
     "json": {
-      "include": ["web/src/i18n/[locale]/**/*.json"]
+      "include": ["web/src/i18n/[locale]/**/*.json"],
+      "plurals": "i18next"
     }
   }
 }

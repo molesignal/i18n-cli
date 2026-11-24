@@ -87,3 +87,15 @@ func TestLiteralPointerKeys(t *testing.T) {
 		t.Fatal("nested output must not be accepted as an exact key match")
 	}
 }
+
+// TestPluralGuidanceOnlyWhenEnabled verifies that the plural categories are explained to the
+// model only for an i18next plural layout.
+func TestPluralGuidanceOnlyWhenEnabled(t *testing.T) {
+	if prompt := translationPrompt("en", "ru", "", "", true); !strings.Contains(prompt, "CLDR cardinal plural category of ru") {
+		t.Fatalf("plural guidance missing: %s", prompt)
+	}
+
+	if prompt := translationPrompt("en", "ru", "", "", false); strings.Contains(prompt, "CLDR") {
+		t.Fatalf("plural guidance without plurals: %s", prompt)
+	}
+}

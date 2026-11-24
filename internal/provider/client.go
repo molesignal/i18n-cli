@@ -20,7 +20,9 @@ type Client struct {
 	BaseURL, APIKey, Model, Instructions string
 	HTTP                                 *http.Client
 	JSONMode                             bool
-	Retries                              int
+	// Plurals tells the model that keys ending in a CLDR plural category are that plural form.
+	Plurals bool
+	Retries int
 }
 
 // translateAttempt sends one batch with optional response-format correction guidance.
@@ -37,7 +39,7 @@ func (c *Client) translateAttempt(ctx context.Context, source, target string, en
 	body := map[string]any{
 		"model": c.Model,
 		"messages": []map[string]string{
-			{"role": "system", "content": translationPrompt(source, target, c.Instructions, correction)},
+			{"role": "system", "content": translationPrompt(source, target, c.Instructions, correction, c.Plurals)},
 			{"role": "user", "content": string(input)},
 		},
 	}

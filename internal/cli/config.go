@@ -31,6 +31,7 @@ type config struct {
 	Buckets struct {
 		JSON struct {
 			Include []string `json:"include"`
+			Plurals string   `json:"plurals"`
 		} `json:"json"`
 	} `json:"buckets"`
 	BatchSize int `json:"batchSize"`

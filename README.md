@@ -18,7 +18,7 @@ i18n-cli --help
 To install a specific release:
 
 ```sh
-go install github.com/molesignal/i18n-cli/cmd/i18n-cli@v0.2.0
+go install github.com/molesignal/i18n-cli/cmd/i18n-cli@v0.3.0
 ```
 
 Go installs the binary into `GOBIN` when set, otherwise into `$(go env GOPATH)/bin`.
@@ -161,6 +161,7 @@ or select a configuration explicitly:
 - Include patterns are relative to the configuration directory. Each must contain exactly one `[locale]` and match at least one source JSON file. Supported wildcards are `*`, `?`, and `**`.
 - Single-file layout: `src/locales/[locale].json`. Directory layout: `src/i18n/[locale]/**/*.json`. Multiple patterns can be combined.
 - Locale names are case-sensitive paths; `en` and `en-us` are not mapped automatically.
+- `buckets.json.plurals` (or `--plurals`) names the plural key layout. It is empty by default. See [Plural forms](#plural-forms).
 - Precedence: explicit CLI flags > non-empty process environment variables > non-empty `.env` values > configuration > built-in defaults.
 - `--dir` overrides the pattern root. The state and lock files live at that root.
 - API keys are read from `OPENAI_API_KEY` in the process environment or `.env`, never from configuration or state.
@@ -171,10 +172,30 @@ Without a configuration file, the default layout is `<dir>/<locale>/**/*.json`:
 ./bin/i18n-cli translate --dir ./locales --source en --target zh-CN,ja-JP,ko-KR
 ```
 
+## Plural forms
+
+Languages have different plural forms: English has `one` and `other`, French adds `many`,
+Russian has `one`, `few`, `many` and `other`, and Japanese only `other`. With
+`"plurals": "i18next"` in `buckets.json`, keys in the
+[i18next JSON v4 layout](https://www.i18next.com/translation-function/plurals), such as
+`items_one` and `items_other`, form a plural group, and each target file gets the
+[CLDR cardinal categories](https://cldr.unicode.org/index/cldr-spec/plural-rules) of its own
+language:
+
+```json
+{ "buckets": { "json": { "include": ["locales/[locale]/*.json"], "plurals": "i18next" } } }
+```
+
+- A group is the string keys `<base>_zero`, `_one`, `_two`, `_few`, `_many` and `_other` of one object that include `<base>_other`. Ordinal keys (`<base>_ordinal_one`) are left as they are.
+- A category the target language has and the source lacks is added right after the group's last key, translated from the `_other` source text. The model is told that the key's suffix is the plural category to write. For Russian, `items_few` and `items_many` are both translated from `items_other`, each in its own grammatical form.
+- Source categories that the target lacks stay in the target file, so the target has every source key; i18next ignores a form its language does not use.
+- An added form is tracked like any other string: it is translated again when the `_other` text changes, and it is not removed as a target-only key.
+- Categories come from a table built into the CLI, looked up by the language subtag (`pt-BR` → `pt`). A language missing from the table gets no categories added.
+
 ## MoleSignal configuration
 
 [examples/molesignal.config.json](examples/molesignal.config.json) matches
-`web/src/i18n/en-us/*.json`. Copy it into the MoleSignal repository root as
+`web/src/i18n/en-us/*.json` and translates the machine-translated languages with i18next plural forms; Simplified Chinese (`zh-cn`) is written by hand. Copy it into the MoleSignal repository root as
 `i18n.config.json`, then run:
 
 ```sh
@@ -191,7 +212,7 @@ all entries on the first run. Later source or prompt changes still trigger trans
 
 - Commit `.i18n-cli-state.json` alongside the translated files. It records source/target locales, file paths, JSON Pointers, and hashes of source text and translation guidance.
 - Each string is tracked separately. Missing translations, blank translations, and broken placeholders are translated again. Valid manual edits are preserved when their source fingerprint is unchanged.
-- Nested objects and arrays are supported. Numbers, booleans, and null come from the source. Empty strings do not call the API. Object keys are sorted deterministically; the initial run can introduce formatting changes.
+- Nested objects and arrays are supported. Numbers, booleans, and null come from the source. Empty strings do not call the API. Target files list their keys in the source file's order and are indented by two spaces, so the first run can reformat an existing target file once.
 - Deleted keys are removed from corresponding target documents. Target files whose entire source file was deleted remain and must be removed manually.
 - `{{name}}`, `${name}`, `{name}`, common printf placeholders, and HTML tags are checked for matching content and counts. Complex ICU plural/select messages are rejected. Validation is not a complete HTML, Markdown, or ICU parser.
 - Model output must contain exactly the requested string keys. Duplicate keys, non-string values, truncated responses, and altered placeholders are rejected.
@@ -211,6 +232,7 @@ all entries on the first run. Later source or prompt changes still trigger trans
 | `--adopt-existing` | Trust valid existing translations without a baseline |
 | `--force` | Retranslate all non-empty strings; mutually exclusive with adoption |
 | `--instructions` | Append a UTF-8 glossary/style file, relative to the working directory |
+| `--plurals` | Plural key layout: `i18next` adds each target language's CLDR plural forms |
 | `--base-url`, `--model` | Override provider configuration |
 | `--json-mode=false` | Omit `response_format` for providers without JSON mode |
 | `--allow-no-key` | Explicitly allow an unauthenticated local provider |
@@ -275,7 +297,7 @@ the live panel on supported terminals. Progress messages remain in English.
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: molesignal/i18n-cli@v0.2.0
+- uses: molesignal/i18n-cli@v0.3.0
   with:
     config: i18n.config.json
     api-key: ${{ secrets.OPENAI_API_KEY }}
@@ -292,8 +314,8 @@ workflow in [examples/translate.workflow.yml](examples/translate.workflow.yml).
 Use the public `molesignal/i18n-cli` repository, then:
 
 1. Save your application configuration as `i18n.config.json` and copy the workflow to `.github/workflows/translate.yml`.
-2. Set Secret `OPENAI_API_KEY` and Variables `I18N_CLI_REPOSITORY` (`molesignal/i18n-cli`) and `I18N_CLI_REF` (`v0.2.0` or a fixed commit SHA). Optionally set `OPENAI_BASE_URL` and `OPENAI_MODEL`.
-3. Adjust source paths, restored target paths, PR `add-paths`, and the default branch. The example uses MoleSignal's en-us/zh-cn/ja-jp/ko-kr layout.
+2. Set Secret `OPENAI_API_KEY` and Variables `I18N_CLI_REPOSITORY` (`molesignal/i18n-cli`) and `I18N_CLI_REF` (`v0.3.0` or a fixed commit SHA). Optionally set `OPENAI_BASE_URL` and `OPENAI_MODEL`.
+3. Adjust source paths, restored target paths, PR `add-paths`, and the default branch. The example uses MoleSignal's layout: en-us source, machine-translated ja-jp, ko-kr, de, es, fr and pt-br.
 4. Allow GitHub Actions to create pull requests and ensure repository/organization policies permit contents and pull-requests write access. A private CLI repository requires a separate checkout token with read access.
 5. Push source changes or trigger the workflow manually. It restores pending translation branch state and updates the same `automation/i18n` PR.
 

@@ -16,7 +16,7 @@ i18n-cli --help
 安装指定版本：
 
 ```sh
-go install github.com/molesignal/i18n-cli/cmd/i18n-cli@v0.2.0
+go install github.com/molesignal/i18n-cli/cmd/i18n-cli@v0.3.0
 ```
 
 二进制安装到 `GOBIN` 指定的目录；未设置时安装到 `$(go env GOPATH)/bin`。请将对应目录加入 `PATH`。默认路径的设置方法：
@@ -143,13 +143,28 @@ unset OPENAI_API_KEY OPENAI_BASE_URL OPENAI_MODEL
 - `include` 相对于配置文件所在目录；每条规则必须含一个 `[locale]`。支持 `*`、`?`、`**`，不支持其他 glob 扩展。每条规则至少匹配一个源 JSON。
 - 单文件：`src/locales/[locale].json`；多文件：`src/i18n/[locale]/**/*.json`；可同时写多条规则。
 - 语言名保留大小写，必须与实际目录/文件一致，不自动映射 `en` 和 `en-us`。
+- `buckets.json.plurals`（或 `--plurals`）指定复数键的格式，默认为空。见[复数形式](#复数形式)。
 - 优先级：显式 CLI 参数 > 非空进程环境变量 > `.env` 中的非空值 > 配置文件 > 内置默认值。
 - `--dir` 可覆盖规则解析根目录；没有配置时默认 `locales`。状态和运行锁保存在该根目录。
 - API Key 从进程环境变量或 `.env` 中的 `OPENAI_API_KEY` 读取，不写入配置或状态。
 
+## 复数形式
+
+不同语言的复数形式不同：英语有 `one` 和 `other`，法语多一个 `many`，俄语有 `one`、`few`、`many`、`other`，日语只有 `other`。在 `buckets.json` 里设置 `"plurals": "i18next"` 后，[i18next JSON v4 格式](https://www.i18next.com/translation-function/plurals)的键（如 `items_one`、`items_other`）构成一个复数组，每个目标文件按自己语言的 [CLDR 基数复数类别](https://cldr.unicode.org/index/cldr-spec/plural-rules)生成：
+
+```json
+{ "buckets": { "json": { "include": ["locales/[locale]/*.json"], "plurals": "i18next" } } }
+```
+
+- 复数组是同一对象中 `<base>_zero`、`_one`、`_two`、`_few`、`_many`、`_other` 这些字符串键，且必须包含 `<base>_other`。序数键（`<base>_ordinal_one`）保持原样。
+- 目标语言有而源语言没有的类别，加在这一组最后一个键之后，从源文的 `_other` 翻译；同时告诉模型键名后缀就是要写的复数类别。例如俄语的 `items_few` 和 `items_many` 都从 `items_other` 翻译，各自使用对应的语法形式。
+- 源语言有而目标语言没有的类别仍保留在目标文件中，目标文件因此包含源文件的所有键；i18next 会忽略该语言不用的形式。
+- 补出的形式和其他字符串一样参与增量：`_other` 原文变化时重新翻译，也不会被当作目标文件独有的键删除。
+- 复数类别来自 CLI 内置的表，按语言子标签查找（`pt-BR` → `pt`）。表中没有的语言不补任何类别。
+
 ## MoleSignal
 
-`examples/molesignal.config.json` 对应当前 `web/src/i18n/en-us/*.json` 结构。把它复制为 MoleSignal 根目录的 `i18n.config.json` 后执行：
+`examples/molesignal.config.json` 对应当前 `web/src/i18n/en-us/*.json` 结构，翻译机器翻译的语言并启用 i18next 复数形式；简体中文（`zh-cn`）为人工编写。把它复制为 MoleSignal 根目录的 `i18n.config.json` 后执行：
 
 ```sh
 /path/to/i18n-cli translate --config /path/to/molesignal/i18n.config.json --dry-run
@@ -162,7 +177,7 @@ unset OPENAI_API_KEY OPENAI_BASE_URL OPENAI_MODEL
 
 - `.i18n-cli-state.json` 记录源语言、目标语言、文件、JSON Pointer、源文案及提示词哈希。请与翻译 JSON 一起提交。
 - 每个字符串单独判断变更；缺失目标、空翻译或占位符损坏会重新翻译。人工修订的有效目标文本保留。
-- 支持嵌套对象和数组。数字、布尔值、null 继承源文件；空字符串不调用 API。对象键按 Go JSON 编码器稳定排序，首次运行可能产生格式差异。
+- 支持嵌套对象和数组。数字、布尔值、null 继承源文件；空字符串不调用 API。目标文件的键按源文件的顺序排列，以两个空格缩进，因此首次运行可能把已有的目标文件重新排版一次。
 - 源文件中已删除的键会从相应目标 JSON 移除；已删除的整个源文件所对应的目标文件保留，需手动清理。
 - `{{name}}`、`${name}`、`{name}`、常见 printf 占位符和 HTML 标签按数量与内容校验。复杂 ICU plural/select 明确拒绝；该校验并非完整的 HTML/Markdown/ICU 解析器。
 - API 输出必须是精确的 JSON 键集合，重复键、非字符串、截断响应、占位符变化均报错。
@@ -182,6 +197,7 @@ unset OPENAI_API_KEY OPENAI_BASE_URL OPENAI_MODEL
 | `--adopt-existing` | 首次信任现有有效翻译 |
 | `--force` | 重译全部非空字符串，与 adopt 互斥 |
 | `--instructions` | 附加 UTF-8 术语表/风格提示文件，相对当前工作目录 |
+| `--plurals` | 复数键格式：`i18next` 按每个目标语言补齐 CLDR 复数形式 |
 | `--base-url`, `--model` | 覆盖提供商配置 |
 | `--json-mode=false` | 不发送 response_format，兼容不支持 JSON mode 的服务 |
 | `--allow-no-key` | 显式允许本地无认证服务 |
@@ -195,7 +211,7 @@ unset OPENAI_API_KEY OPENAI_BASE_URL OPENAI_MODEL
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: molesignal/i18n-cli@v0.2.0
+- uses: molesignal/i18n-cli@v0.3.0
   with:
     config: i18n.config.json
     api-key: ${{ secrets.OPENAI_API_KEY }}
@@ -208,8 +224,8 @@ Action 支持 `config`、`api-key`、`base-url`、`model` 和 `dry-run` 输入�
 工程提供 `action.yml` composite action 和 `examples/translate.workflow.yml` 消费端工作流。使用公开仓库 `molesignal/i18n-cli`，然后：
 
 1. 将配置保存为业务仓库 `i18n.config.json`，工作流复制到 `.github/workflows/translate.yml`。
-2. 设置仓库 Secret `OPENAI_API_KEY`；Variables `I18N_CLI_REPOSITORY`（`molesignal/i18n-cli`）、`I18N_CLI_REF`（`v0.2.0` 或固定 commit SHA）。可选 `OPENAI_BASE_URL`、`OPENAI_MODEL`。
-3. 按实际配置修改工作流源路径、恢复目标路径、PR add-paths 和默认分支。示例已匹配 MoleSignal 的 en-us/zh-cn/ja-jp/ko-kr。
+2. 设置仓库 Secret `OPENAI_API_KEY`；Variables `I18N_CLI_REPOSITORY`（`molesignal/i18n-cli`）、`I18N_CLI_REF`（`v0.3.0` 或固定 commit SHA）。可选 `OPENAI_BASE_URL`、`OPENAI_MODEL`。
+3. 按实际配置修改工作流源路径、恢复目标路径、PR add-paths 和默认分支。示例已匹配 MoleSignal 的结构：源语言 en-us，机器翻译 ja-jp、ko-kr、de、es、fr、pt-br。
 4. 允许 GitHub Actions 创建 Pull Request，确保组织策略允许 contents/pull-requests 写权限。私有 CLI 仓库需要具有读取权限的单独 checkout token。
 5. 推送源 JSON 或手动触发工作流。工作流恢复尚未合并的翻译分支状态，增量更新同一个 `automation/i18n` PR。
 

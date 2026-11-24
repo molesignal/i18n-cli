@@ -29,7 +29,10 @@ type Translator interface {
 
 // Options controls file discovery, incremental planning, and translation execution.
 type Options struct {
-	Dir, Source, Instructions    string
+	Dir, Source, Instructions string
+	// Plurals names the plural layout of the source keys ("" or PluralI18next). With
+	// PluralI18next each target file gets the plural categories of its own language.
+	Plurals                      string
 	Targets                      []string
 	Include                      []string
 	BatchSize                    int
@@ -70,6 +73,10 @@ func Run(ctx context.Context, o Options, translator Translator) (runErr error) {
 
 	if o.Force && o.AdoptExisting {
 		return fmt.Errorf("--force and --adopt-existing are mutually exclusive")
+	}
+
+	if err := checkPlurals(o.Plurals); err != nil {
+		return err
 	}
 
 	seen := map[string]bool{strings.ToLower(o.Source): true}
@@ -169,6 +176,10 @@ func Run(ctx context.Context, o Options, translator Translator) (runErr error) {
 			doc, err := Decode(data)
 			if err != nil {
 				return fmt.Errorf("%s: %w", rel, err)
+			}
+
+			if o.Plurals == PluralI18next {
+				doc = expandPlurals(doc, target)
 			}
 
 			original := Strings(doc)
@@ -336,16 +347,10 @@ func noSymlinks(path string) error {
 // writeJSON replaces a changed JSON file using a temporary file in the same directory.
 // Identical content is left untouched to preserve its modification time.
 func writeJSON(path string, value any) error {
-	var buffer bytes.Buffer
-	encoder := json.NewEncoder(&buffer)
-	encoder.SetEscapeHTML(false)
-	encoder.SetIndent("", "  ")
-
-	if err := encoder.Encode(value); err != nil {
+	data, err := encode(value)
+	if err != nil {
 		return err
 	}
-
-	data := buffer.Bytes()
 
 	if previous, err := os.ReadFile(path); err == nil && bytes.Equal(previous, data) {
 		return nil
